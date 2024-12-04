@@ -1,0 +1,319 @@
+---
+title: "Aplicación de Graphical LASSO en el Estudio de Valores del Mercado Financiero"
+subtitle: "Enfoque Estadístico del Aprendizaje Automático - Data Mining UBA"
+author: "Alumnos: Calderón Shirley y Tedoldi Santiago"
+date: "10 de diciembre de 2024"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_float: yes
+---
+
+<style type="text/css">
+div.main-container {
+  max-width: 1600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+# Resumen
+
+**Este trabajo propone una metodología innovadora para construir redes de dependencia entre acciones en el mercado financiero mediante el uso de Graphical LASSO (GLASSO). Al modelar las acciones como nodos de una red y analizar sus precios a lo largo del tiempo, buscamos identificar patrones de dependencias condicionales que podrían revelar tendencias y anomalías de interés para la toma de decisiones de inversión. La propuesta se centra en proporcionar una herramienta visual para comprender la estructura de dependencia en los activos financieros.**
+
+
+# Carga de Librerías
+
+```{r}
+required.packages <- c('glasso', 'colorRamps', 'igraph', 'RColorBrewer', 'threejs', 'htmlwidgets','quantmod', 'tidyverse', 'PerformanceAnalytics')
+new.packages <- required.packages[!(required.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages, repos='http://cran.us.r-project.org')
+
+library(ggplot2)
+library(dplyr)
+library(glasso);
+library(colorRamps);
+library(igraph);
+library(RColorBrewer);
+library(threejs);
+library(htmlwidgets);
+library(quantmod)
+library(tidyverse)
+library(PerformanceAnalytics)
+
+```
+
+# Valores bursátiles (stocks)
+
+Se analizaran un total de 197 stocks, tomando los más conocidos a nivel internacional.
+
+```{r}
+
+symbols <- c("AAPL", "MSFT", "GOOG", "AMZN", "META", "TSLA", "BRK.A", "V", "JNJ", "WMT",
+             "JPM", "MA", "PG", "UNH", "NVDA", "HD", "DIS", "PYPL", "VZ", "ADBE",
+             "NFLX", "INTC", "CMCSA", "KO", "PFE", "PEP", "T", "MRK", "CSCO", "XOM",
+             "ABT", "CVX", "NKE", "LLY", "ORCL", "MCD", "DHR", "COST", "WFC", "MDT",
+             "ACN", "HON", "BMY", "AVGO", "TXN", "QCOM", "UNP", "NEE", "PM", "LIN",
+             "AMGN", "LOW", "UPS", "MS", "IBM", "SBUX", "RTX", "GS", "BLK", "CAT",
+             "SPGI", "PLD", "AMT", "TMO", "INTU", "CVS", "ISRG", "ELV", "GE", "LMT",
+             "MDLZ", "BKNG", "DE", "ADP", "AXP", "SYK", "GILD", "ZTS", "CI", "CB",
+             "MMC", "ADI", "MO", "SCHW", "USB", "C", "DUK", "SO", "TGT", "BDX",
+             "PNC", "APD", "CL", "ITW", "NSC", "ICE", "CCI", "REGN", "EW", "SHW",
+             "FIS", "TJX", "NOC", "ETN", "GM", "D", "ECL", "EMR", "MET", "ILMN",
+             "AON", "WM", "PSA", "FISV", "HUM", "MCO", "ADSK", "AEP", "SRE", "SPG",
+             "MCHP", "IDXX", "ROP", "KMB", "EXC", "ORLY", "TRV", "MSCI", "CTSH",
+             "MAR", "AIG", "LRCX", "KLAC", "CDNS", "CTAS", "AZO", "CME", "APTV",
+             "PRU", "WBA", "BIIB", "TEL", "EOG", "PPG", "STZ", "MPC", "ALL", "AFL",
+             "ATVI", "DLR", "SYY", "BK", "A", "HPQ", "MNST", "WELL", "ROST", "YUM",
+             "OXY", "PSX", "KHC", "DG", "HLT", "DHI", "MSI", "TT", "VLO", "GLW",
+             "KEYS", "FTNT", "ODFL", "PAYX", "WMB", "CNC", "MTD", "PGR", "EBAY",
+             "HCA", "CTVA", "LHX", "NEM", "FAST", "AMP", "KR", "VRSK", "WEC", "EQR",
+             "PCAR", "DLTR", "SBAC", "TSN", "BAX", "DTE", "PEG", "ES", "ED", "FE")
+
+
+
+length(symbols)
+```
+## Ventana temporal
+
+La elección de la ventana de tiempo adecuada para el análisis de clustering de valores bursátiles y sus retornos depende de los objetivos específicos del análisis y de las características de los datos que deseas capturar. Aquí algunos enfoques para elegir una ventana de tiempo prudente:
+
+1. **Ventana de 6 a 12 meses**:
+   - **Objetivo**: Capturar tendencias y comportamiento reciente.
+   - **Ventajas**: Captura el comportamiento en respuesta a eventos económicos recientes (por ejemplo, cambios en la política monetaria, crisis económicas). Permite agrupar acciones que están reaccionando de manera similar a situaciones actuales.
+   - **Uso recomendado**: Esta ventana de tiempo es útil si tu objetivo es identificar patrones de comportamiento a corto plazo o si estás interesado en clasificar los stocks en función de cambios recientes del mercado.
+
+2. **Ventana de 24 a 36 meses**:
+   - **Objetivo**: Capturar patrones a mediano plazo.
+   - **Ventajas**: Permite analizar el comportamiento de los valores a lo largo de un ciclo económico, teniendo en cuenta más eventos de mercado y distintas fases del ciclo. Es suficientemente larga como para evitar ruido temporal de corto plazo.
+   - **Uso recomendado**: Útil para identificar clusters de acciones que mantienen características similares durante períodos más largos, lo cual puede ser indicativo de la estructura de sus industrias o estrategias subyacentes.
+
+3. **Ventana de 3 a 5 años o más**:
+   - **Objetivo**: Capturar la tendencia de largo plazo y los patrones de comportamiento cíclico.
+   - **Ventajas**: Permite ver cómo los diferentes valores se comportan en situaciones diversas a largo plazo, incluyendo períodos de expansión y contracción del mercado.
+   - **Uso recomendado**: Útil si estás buscando analizar características estructurales o fundamentales de los valores. A largo plazo, las agrupaciones obtenidas reflejarán similitudes en los fundamentos del negocio o la resistencia a factores de mercado, y no tanto el comportamiento a corto plazo.
+
+4. **Ventana adaptativa (rolling window)**:
+   - Otra estrategia podría ser utilizar una ventana de tiempo rodante, por ejemplo, de 12 meses que vaya moviéndose cada mes o trimestre. Esto te permitiría observar cómo evolucionan los clusters a lo largo del tiempo y cómo cambian los comportamientos de las acciones.
+   - **Objetivo**: Identificar cambios en los patrones de comportamiento de los stocks a lo largo del tiempo.
+   - **Ventajas**: Captura cómo se modifican los grupos durante distintas fases del mercado y permite estudiar transiciones de comportamiento.
+
+Para evaluar estos valores en diferentes **condiciones de mercado** (por ejemplo, tanto en tiempos de expansión como de recesión), usaremos una ventana de **36 meses**.
+
+```{r}
+
+end_date <- Sys.Date() - days(1) # ayer
+start_date <- end_date - months(36)
+
+print(end_date)
+print(start_date)
+
+```
+
+## Descarga de datos
+
+Se define una función que utiliza la función getSymbols() pertenece al paquete **quantmod** y se utiliza para descargar datos financieros de diferentes fuentes (por defecto Yahoo Finance). Luego, la función Cl(), del mismo paquete, extrae los precios de cierre ajustado de un objeto tipo OHLCV (Open, High, Low, Close, Volume).
+
+```{r}
+
+get_stock_data <- function(symbol) {
+  tryCatch({
+    stock_data <- getSymbols(symbol, src = "yahoo", from = start_date, to = end_date, auto.assign = FALSE)
+    stock_data <- Cl(stock_data)
+    colnames(stock_data) <- symbol
+    return(stock_data)
+  }, error = function(e) {
+    message(paste("No se pudieron obtener datos para", symbol))
+    return(NULL)
+  })
+}
+
+```
+
+Se aplica la función creada para las stocks definidas previamente, aplicando un merge para combinar las series temporales de cada símbolo en un único xts (serie temporal extensible).
+```{r}
+
+stock_list <- lapply(symbols, get_stock_data)
+stock_data <- do.call(merge, stock_list)
+
+```
+
+## Preprocesamiento
+
+Se descartan las columnas con datos faltantes o rotas. Luego, se preparan los dataframes para analizar los datos obtenidos de Internet.
+
+```{r}
+
+# Eliminar columnas con datos faltantes
+stock_data <- na.omit(stock_data)
+
+# Calcular retornos diarios
+returns <- na.omit(ROC(stock_data, type = "discrete"))
+
+# Convertir a tibble y agregar columnas útiles para el análisis de valores
+stock_data_df <- as.data.frame(stock_data) %>%
+  rownames_to_column(var = "Date") %>%
+  mutate(Date = ymd(Date))
+
+# Convertir a tibble y agregar columnas útiles para el análisis de retornos
+returns_df <- as.data.frame(returns) %>%
+  rownames_to_column(var = "Date") %>%
+  mutate(Date = ymd(Date))
+
+```
+
+Un rápido vistazo a los datos:
+
+```{r}
+
+print(summary(stock_data_df[-1][0:9]))
+
+stock_data_df
+
+```
+
+```{r}
+
+print(summary(returns_df[-1][0:9]))
+
+returns_df
+
+```
+
+## Correlaciones
+
+Para mostrar el valor de la técnica Graphical LASSO en este caso de uso, vamos a aplicar un análisis de correlación de los valores.
+
+Tomando solo las primeras 20 stocks:
+
+```{r}
+
+# Análisis de correlación de valores, con solo 20 stocks
+cor_matrix_values <- cor(stock_data_df[-1][0:19], use = "pairwise.complete.obs")
+
+# Visualizar matriz de correlación
+corrplot::corrplot(cor_matrix_values, method = "color", tl.cex = 0.6, tl.col = "black")
+
+```
+OBSERVACIÓN: hay muchos valores altamente correlacionados.
+
+Preparando un filtro para las variables muy correlacionadas (>0.9), para visualizar mejor los datos:
+
+```{r}
+
+# Análisis de correlación de valores, TODOS
+cor_matrix_values <- cor(stock_data_df[-1], use = "pairwise.complete.obs")
+
+# Filtrar símbolos con alta correlación en valores
+high_corr_pairs_values <- which(abs(cor_matrix_values) > 0.9 & abs(cor_matrix_values) < 1, arr.ind = TRUE)
+high_corr_pairs_values <- high_corr_pairs_values[high_corr_pairs_values[,1] < high_corr_pairs_values[,2],]
+
+# Obtener los símbolos más correlacionados
+high_corr_symbols <- unique(c(rownames(cor_matrix_values)[high_corr_pairs_values[,1]], colnames(cor_matrix_values)[high_corr_pairs_values[,2]]))
+
+# Filtrar los datos para los símbolos más correlacionados
+filtered_symbols <- intersect(symbols, high_corr_symbols)
+filtered_stock_data <- stock_data[, filtered_symbols]
+filtered_returns <- returns[, filtered_symbols]
+
+```
+
+Filtrando dataframes para un EDA:
+
+```{r}
+
+# Convertir a tibble y agregar columnas útiles para el análisis de valores filtrados
+filtered_stock_data_df <- as.data.frame(filtered_stock_data) %>%
+  rownames_to_column(var = "Date") %>%
+  mutate(Date = ymd(Date))
+
+# Convertir a tibble y agregar columnas útiles para el análisis de retornos filtrados
+filtered_returns_df <- as.data.frame(filtered_returns) %>%
+  rownames_to_column(var = "Date") %>%
+  mutate(Date = ymd(Date))
+
+```
+
+
+## Exploratory Data Analysis (EDA)
+
+1. Tendencia de los precios de cierre para cada símbolo
+
+```{r}
+price_trend_plot_filtered <- filtered_stock_data_df[0:9] %>%
+  pivot_longer(-Date, names_to = "Symbol", values_to = "Close") %>%
+  ggplot(aes(x = Date, y = Close, color = Symbol)) +
+  geom_line() +
+  labs(title = "Algunas tendencia de precios de cierre", x = "Fecha", y = "Precio de Cierre") +
+  theme_minimal()
+
+print(price_trend_plot_filtered)
+
+```
+
+2. Histograma de los retornos diarios para cada símbolo filtrado
+
+```{r}
+return_hist_plot_filtered <- filtered_returns_df[0:9] %>%
+  pivot_longer(-Date, names_to = "Symbol", values_to = "Return") %>%
+  ggplot(aes(x = Return, fill = Symbol)) +
+  geom_histogram(bins = 50, color = "black", alpha = 0.7) +
+  labs(title = "Histograma de sus retornos diarios", x = "Retorno diario", y = "Frecuencia") +
+  theme_minimal()
+
+print(return_hist_plot_filtered)
+
+```
+
+2. 3. Tendencia de los retornos anuales para el grupo reducido de símbolos
+
+```{r}
+
+filtered_anual_returns_df <- filtered_returns_df[0:9] %>%
+  mutate(year = year(Date)) %>%
+  group_by(year) %>%
+  summarise(across(-Date, ~ (last(.x) - first(.x)) / first(.x), .names = "annual_return_{col}")) %>%
+  pivot_longer(-year, names_to = "Symbol", values_to = "Annual_Return")
+
+annual_return_plot_filtered <- filtered_anual_returns_df %>%
+  ggplot(aes(x = year, y = Annual_Return, color = Symbol, group = Symbol)) +
+  geom_line() +
+  geom_point(size = 2) +
+  labs(title = "Retornos anuales (filtrado)", x = "Año", y = "Retorno anual") +
+  theme_minimal()
+
+print(annual_return_plot_filtered)
+
+```
+
+```{r}
+
+high_corr_symbols
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+

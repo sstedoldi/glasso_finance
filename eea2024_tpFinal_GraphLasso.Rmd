@@ -132,10 +132,43 @@ get_stock_data <- function(symbol) {
 ```
 
 Se aplica la función creada para las stocks definidas previamente, aplicando un merge para combinar las series temporales de cada símbolo en un único xts (serie temporal extensible).
+
 ```{r}
 
 stock_list <- lapply(symbols, get_stock_data)
 stock_data <- do.call(merge, stock_list)
+
+```
+
+## Guardando datos localmente
+
+Para evitar volver a consultar la API de yahoo finance:
+
+```{r}
+
+stock_data <- as.data.frame(stock_data)
+
+stock_data$fecha <- rownames(stock_data)
+
+write.table(stock_data, file = sprintf("yahoo_data_%s.txt", end_date), row.names = F, col.names = T)
+
+```
+
+## Lectura de los datos
+
+Lectura de los datos guardados con fecha 2024-12-04, con 36 meses de valores: 
+
+```{r}
+
+# stock_data <- read.table(sprintf("yahoo_data_%s.txt", end_date), header = TRUE)
+stock_data <- read.table("yahoo_data_2024-12-04.txt", header = TRUE)
+
+# Convertir la columna 'fecha' a nombres de fila
+rownames(stock_data) <- stock_data$fecha
+stock_data$fecha <- NULL
+
+# Mostrar el resultado
+stock_data
 
 ```
 
@@ -289,7 +322,7 @@ print(annual_return_plot_filtered)
 
 ```{r}
 
-high_corr_symbols
+
 
 ```
 

@@ -129,6 +129,15 @@ get_stock_data <- function(symbol) {
   })
 }
 
+get_stock_sector <- function(symbol) {
+  url <- paste0("https://finance.yahoo.com/quote/", symbol, "/profile?p=", symbol)
+  webpage <- read_html(url)
+  sector <- webpage %>%
+    html_nodes(xpath = '//span[contains(text(), "Sector")]/following-sibling::span') %>%
+    html_text()
+  return(sector)
+}
+
 ```
 
 Se aplica la función creada para las stocks definidas previamente, aplicando un merge para combinar las series temporales de cada símbolo en un único xts (serie temporal extensible).
@@ -176,13 +185,15 @@ stock_data
 
 Se descartan las columnas con datos faltantes o rotas. Luego, se preparan los dataframes para analizar los datos obtenidos de Internet.
 
+Además, se calculan los retornos usando la función ROC que proviene del paquete TTR, el cual usualmente se instala de manera automática junto con quantmod, y sirve para calcular la tasa de cambio de una serie temporal de precios u otros datos financieros. Su uso típico es con precios de un activo en diferentes momentos y se emplea frecuentemente en análisis técnico para medir cuánto varía el precio entre un punto actual y un punto anterior.
+
 ```{r}
 
 # Eliminar columnas con datos faltantes
-stock_data <- na.omit(stock_data)
+# stock_data <- na.omit(stock_data) # quita muchas filas, por ausencias o falta de nombres
 
 # Calcular retornos diarios
-returns <- na.omit(ROC(stock_data, type = "discrete"))
+returns <- ROC(stock_data, type = "discrete")
 
 # Convertir a tibble y agregar columnas útiles para el análisis de valores
 stock_data_df <- as.data.frame(stock_data) %>%
@@ -216,55 +227,73 @@ returns_df
 
 ## Correlaciones
 
-Para mostrar el valor de la técnica Graphical LASSO en este caso de uso, vamos a aplicar un análisis de correlación de los valores.
+Para mostrar el valor de la técnica Graphical LASSO, en este caso de uso, vamos a aplicar un análisis de correlación de los valores.
 
-Tomando solo las primeras 20 stocks:
+Tomando solo 30 stocks stocks al azar:
 
 ```{r}
 
-# Análisis de correlación de valores, con solo 20 stocks
-cor_matrix_values <- cor(stock_data_df[-1][0:19], use = "pairwise.complete.obs")
+# Seleccionar 30 variables al azar de stock_data_df excluyendo la primera columna
+set.seed(42) # Fijar semilla para reproducibilidad
+random_columns <- sample(names(stock_data_df)[-1], 30)
 
-# Visualizar matriz de correlación
+# Crear un subconjunto del dataframe con las columnas seleccionadas al azar
+stock_data_random <- stock_data_df[random_columns]
+
+# Calcular la matriz de correlación con las 30 columnas seleccionadas
+cor_matrix_values <- cor(stock_data_random, use = "pairwise.complete.obs")
+
+# Visualizar la matriz de correlación
 corrplot::corrplot(cor_matrix_values, method = "color", tl.cex = 0.6, tl.col = "black")
 
 ```
-OBSERVACIÓN: hay muchos valores altamente correlacionados.
+OBSERVACIÓN: hay muchos valores altamente correlacionados, tanto negativa como positivamente.
 
-Preparando un filtro para las variables muy correlacionadas (>0.9), para visualizar mejor los datos:
+Preparando un filtro para las variables muy correlacionadas (abs > 0.9), para visualizar mejor los datos:
 
 ```{r}
 
-# Análisis de correlación de valores, TODOS
-cor_matrix_values <- cor(stock_data_df[-1], use = "pairwise.complete.obs")
-
 # Filtrar símbolos con alta correlación en valores
-high_corr_pairs_values <- which(abs(cor_matrix_values) > 0.9 & abs(cor_matrix_values) < 1, arr.ind = TRUE)
-high_corr_pairs_values <- high_corr_pairs_values[high_corr_pairs_values[,1] < high_corr_pairs_values[,2],]
+pos_corr_pairs_values <- which(cor_matrix_values > 0.9 & abs(cor_matrix_values) < 1, arr.ind = TRUE)
+neg_corr_pairs_values <- which(cor_matrix_values < -0.9 & abs(cor_matrix_values) < 1, arr.ind = TRUE)
 
-# Obtener los símbolos más correlacionados
-high_corr_symbols <- unique(c(rownames(cor_matrix_values)[high_corr_pairs_values[,1]], colnames(cor_matrix_values)[high_corr_pairs_values[,2]]))
+# Asumimos que ya existen las variables pos_corr_pairs_values y neg_corr_pairs_values
+# provenientes del código que mostraste.
 
-# Filtrar los datos para los símbolos más correlacionados
-filtered_symbols <- intersect(symbols, high_corr_symbols)
-filtered_stock_data <- stock_data[, filtered_symbols]
-filtered_returns <- returns[, filtered_symbols]
+# Crear un data frame con los pares altamente correlacionados positivamente
+pos_pairs <- data.frame(
+  Symbol1 = rownames(cor_matrix_values)[pos_corr_pairs_values[, 1]],
+  Symbol2 = colnames(cor_matrix_values)[pos_corr_pairs_values[, 2]],
+  Correlation = cor_matrix_values[pos_corr_pairs_values]
+)
 
+# Crear un data frame con los pares altamente correlacionados negativamente
+neg_pairs <- data.frame(
+  Symbol1 = rownames(cor_matrix_values)[neg_corr_pairs_values[, 1]],
+  Symbol2 = colnames(cor_matrix_values)[neg_corr_pairs_values[, 2]],
+  Correlation = cor_matrix_values[neg_corr_pairs_values]
+)
+
+# Si deseas, puedes ver una muestra de estos data frames:
+head(pos_pairs)
+head(neg_pairs)
 ```
+
+Entre los pares áltamente correlacionados, podemos comparar a META (comunicación y tecnología) vs. LIN (materiales químicos). Con una correlación positiva de 92.5 %, es muy poco probable que el crecimiento de una impacte directamente en el crecimiento de la otra.
+
+Por otra parte, podemos comparar a HUM (salud) vs. AXP (finanzas), con una correlación negativa de 90.1 %. En este caso, también resulta poco probable que la caída de una impacte directamente en la caída de la otra.
 
 Filtrando dataframes para un EDA:
 
 ```{r}
 
-# Convertir a tibble y agregar columnas útiles para el análisis de valores filtrados
-filtered_stock_data_df <- as.data.frame(filtered_stock_data) %>%
-  rownames_to_column(var = "Date") %>%
-  mutate(Date = ymd(Date))
+# Columnas con correlacion altamente positiva
+pos_corr_stocks <- stock_data_df %>% select(Date, META, LIN)
 
-# Convertir a tibble y agregar columnas útiles para el análisis de retornos filtrados
-filtered_returns_df <- as.data.frame(filtered_returns) %>%
-  rownames_to_column(var = "Date") %>%
-  mutate(Date = ymd(Date))
+# Columnas con correlacion altamente positiva
+neg_corr_stocks <- stock_data_df %>% select(Date, HUM, NFLX)
+
+stock_data_df
 
 ```
 
@@ -273,8 +302,25 @@ filtered_returns_df <- as.data.frame(filtered_returns) %>%
 
 1. Tendencia de los precios de cierre para cada símbolo
 
+Correlación positiva:
+
 ```{r}
-price_trend_plot_filtered <- filtered_stock_data_df[0:9] %>%
+price_trend_plot_filtered <- pos_corr_stocks %>%
+  pivot_longer(-Date, names_to = "Symbol", values_to = "Close") %>%
+  ggplot(aes(x = Date, y = Close, color = Symbol)) +
+  geom_line() +
+  labs(title = "Algunas tendencia de precios de cierre", x = "Fecha", y = "Precio de Cierre") +
+  theme_minimal()
+
+print(price_trend_plot_filtered)
+
+```
+
+Correlación negativa:
+
+```{r}
+
+price_trend_plot_filtered <- neg_corr_stocks %>%
   pivot_longer(-Date, names_to = "Symbol", values_to = "Close") %>%
   ggplot(aes(x = Date, y = Close, color = Symbol)) +
   geom_line() +
@@ -287,8 +333,11 @@ print(price_trend_plot_filtered)
 
 2. Histograma de los retornos diarios para cada símbolo filtrado
 
+Correlación positiva:
+
 ```{r}
-return_hist_plot_filtered <- filtered_returns_df[0:9] %>%
+
+return_hist_plot_filtered <- pos_corr_stocks %>%
   pivot_longer(-Date, names_to = "Symbol", values_to = "Return") %>%
   ggplot(aes(x = Return, fill = Symbol)) +
   geom_histogram(bins = 50, color = "black", alpha = 0.7) +
@@ -299,26 +348,24 @@ print(return_hist_plot_filtered)
 
 ```
 
-2. 3. Tendencia de los retornos anuales para el grupo reducido de símbolos
+Correlación negativa:
 
 ```{r}
 
-filtered_anual_returns_df <- filtered_returns_df[0:9] %>%
-  mutate(year = year(Date)) %>%
-  group_by(year) %>%
-  summarise(across(-Date, ~ (last(.x) - first(.x)) / first(.x), .names = "annual_return_{col}")) %>%
-  pivot_longer(-year, names_to = "Symbol", values_to = "Annual_Return")
-
-annual_return_plot_filtered <- filtered_anual_returns_df %>%
-  ggplot(aes(x = year, y = Annual_Return, color = Symbol, group = Symbol)) +
-  geom_line() +
-  geom_point(size = 2) +
-  labs(title = "Retornos anuales (filtrado)", x = "Año", y = "Retorno anual") +
+return_hist_plot_filtered <- neg_corr_stocks %>%
+  pivot_longer(-Date, names_to = "Symbol", values_to = "Return") %>%
+  ggplot(aes(x = Return, fill = Symbol)) +
+  geom_histogram(bins = 50, color = "black", alpha = 0.7) +
+  labs(title = "Histograma de sus retornos diarios", x = "Retorno diario", y = "Frecuencia") +
   theme_minimal()
 
-print(annual_return_plot_filtered)
+print(return_hist_plot_filtered)
 
 ```
+
+CONCLUSION: Analizar valores bursátiles/stocks e intentar relacionarlos por sus correlaciones o sus distribuciones de ROC es confuso, sobretodo para el ojo inexperto. Conocer el tipo de industria o negocio que sustenta al stock para relevante, pero aún así no parece suficiente para agruparlos por su compartamiento bursatil.
+
+## 
 
 ```{r}
 

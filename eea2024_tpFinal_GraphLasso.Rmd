@@ -365,17 +365,124 @@ print(return_hist_plot_filtered)
 
 CONCLUSION: Analizar valores bursátiles/stocks e intentar relacionarlos por sus correlaciones o sus distribuciones de ROC es confuso, sobretodo para el ojo inexperto. Conocer el tipo de industria o negocio que sustenta al stock para relevante, pero aún así no parece suficiente para agruparlos por su compartamiento bursatil.
 
-## 
+## Graphical LASSO
+
+Aplicación de la técnica, paso por paso, partiendo del dataframe de retornos en lugar de los valores de cierre. Esto, resulta ventajoso para: 
+
+- Eliminar las tendencias de largo plazo
+- Sumar comparabilidad (retornos adimencionales)
+- Captar mejor los fenómenos estacionarios
+- Reducir impacto de eventos corporativos (splits o distribución de dividendos)
+- Foco en las ganancias de los activos, con mayor valor en el mundo del trading
+
+### Cálculo de la Matriz de Covarianza
 
 ```{r}
 
+# con returns el método falla y no encuentra relaciones
+# cov_matrix <- cov(na.omit(returns)) # al omitir na se pierden varios años de datos VER
 
+cov_matrix <- cov(na.omit(stock_data))
 
 ```
 
+### Aplicación de Graphical LASSO
+
+Graphical LASSO estima una **matriz de precisión esparsa** (\( \Omega \)), que es la inversa de la matriz de covarianza regularizada. La matriz de precisión es clave porque cada elemento \( \Omega_{jk} \) describe la **dependencia condicional** entre dos variables (\( X_j \) y \( X_k \)), es decir, cuánto están relacionadas cuando se eliminan los efectos de todas las demás variables.
+
+**Regularización en el Graphical LASSO**
+
+El algoritmo de Graphical LASSO resuelve el siguiente problema de optimización:
+
+\[
+\hat{\Omega} = \underset{\Omega \succ 0}{\arg \min} \ \Big[ \text{tr}(\Sigma \Omega) - \log\det(\Omega) + \lambda \|\Omega\|_1 \Big]
+\]
+
+Donde:
+- \( \Sigma \): matriz de covarianza empírica.
+- \( \Omega \): matriz de precisión (inversa de la covarianza).
+- \( \text{tr}(\Sigma \Omega) \): traza del producto entre \( \Sigma \) y \( \Omega \).
+- \( \log\det(\Omega) \): logaritmo del determinante de \( \Omega \), que garantiza que \( \Omega \) sea positiva definida.
+- \( \|\Omega\|_1 \): suma de los valores absolutos de los elementos de \( \Omega \), que induce esparsidad.
+- \( \lambda \): parámetro de regularización (también llamado \( \rho \) en algunos contextos).
+
+**Intuición del término de regularización**
+
+A medida que \( \lambda \) aumenta, más elementos de \( \Omega \) se fuerzan a cero, eliminando conexiones entre variables y generando un grafo más esparso. Un \( \lambda \) bajo permite conexiones más débiles y genera un grafo más denso.
+
+#### Matriz de precisión
+
+Usamos la función `glasso` para resolver este problema. El resultado incluye la matriz de precisión regularizada (\( \hat{\Omega} \)):
+
 ```{r}
 
+rho <- 0.5  # Valor de regularización
+glasso_result <- glasso(cov_matrix, rho = rho)
 
+# Matriz de precisión
+precision_matrix <- glasso_result$wi
+
+```
+
+#### Matriz de correlación parcial
+
+La correlación parcial mide la relación directa entre dos variables \( X_j \) y \( X_k \), eliminando los efectos de todas las demás variables (\( X_{\setminus\{j,k\}} \)). Se calcula a partir de la matriz de precisión regularizada (\( \Omega \)).
+
+Dado que \( \Omega \) es la matriz de precisión, la correlación parcial entre \( X_j \) y \( X_k \) está dada por:
+
+\[
+R_{jk} = -\frac{\Omega_{jk}}{\sqrt{\Omega_{jj} \cdot \Omega_{kk}}}
+\]
+
+Donde:
+- \( \Omega_{jk} \): elemento de la matriz de precisión que representa la dependencia condicional entre \( X_j \) y \( X_k \).
+- \( \Omega_{jj} \) y \( \Omega_{kk} \): elementos diagonales de \( \Omega \), que representan la varianza condicional de \( X_j \) y \( X_k \).
+
+**Intuición matemática**
+
+Si \( \Omega_{jk} \) es cero, \( R_{jk} = 0 \). Esto indica que \( X_j \) y \( X_k \) son condicionalmente independientes, dado el resto de las variables. Si \( \Omega_{jk} \neq 0 \), el signo y la magnitud de \( R_{jk} \) determinan la dirección y fuerza de la relación directa entre \( X_j \) y \( X_k \).
+
+
+```{r}
+
+# Calcular matriz de correlación parcial
+partial_corr_matrix <- matrix(0, nrow = nrow(precision_matrix), ncol = ncol(precision_matrix))
+for (j in 1:nrow(precision_matrix)) {
+  for (k in 1:ncol(precision_matrix)) {
+    partial_corr_matrix[j, k] <- -precision_matrix[j, k] / sqrt(precision_matrix[j, j] * precision_matrix[k, k])
+  }
+}
+diag(partial_corr_matrix) <- 0  # Evitar autoconexiones
+colnames(partial_corr_matrix) <- colnames(returns)
+rownames(partial_corr_matrix) <- colnames(returns)
+
+print(partial_corr_matrix)
+
+partial_corr_matrix > 0.1
+
+```
+
+### Visualizar las relaciones como un gráfico de red
+
+Usamos igraph para construir y visualizar un gráfico basado en las conexiones significativas en la matriz de correlación parcial.
+
+```{r}
+
+# Construir grafo desde la matriz de correlación parcial
+stock_graph <- graph_from_adjacency_matrix(partial_corr_matrix > 0.1, mode = "undirected", weighted = TRUE)
+
+# Eliminar nodos sin conexiones
+isolated <- which(degree(stock_graph) == 0)
+stock_graph <- delete_vertices(stock_graph, isolated)
+
+# Asignar colores a los nodos
+num_vertices <- vcount(stock_graph)  # Número de nodos en el grafo
+palette <- colorRampPalette(RColorBrewer::brewer.pal(12, "Set3"))(num_vertices)
+#palette <- RColorBrewer::brewer.pal(min(num_vertices, 12), name = "Set3")  # Asegurar no exceder el límite de 12 colores
+V(stock_graph)$color <- palette[1:num_vertices]  # Asignar colores a los nodos
+
+# Visualizar el grafo
+plot(stock_graph, vertex.size = 10, vertex.label.cex = 0.8, edge.width = E(stock_graph)$weight * 2)
 
 ```
 

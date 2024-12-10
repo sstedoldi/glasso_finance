@@ -32,12 +32,12 @@ if(length(new.packages)) install.packages(new.packages, repos='http://cran.us.r-
 
 library(ggplot2)
 library(dplyr)
-library(glasso);
-library(colorRamps);
-library(igraph);
-library(RColorBrewer);
-library(threejs);
-library(htmlwidgets);
+library(glasso)
+library(colorRamps)
+library(igraph)
+library(RColorBrewer)
+library(threejs)
+library(htmlwidgets)
 library(quantmod)
 library(tidyverse)
 library(PerformanceAnalytics)
@@ -46,34 +46,81 @@ library(PerformanceAnalytics)
 
 # Valores bursátiles (stocks)
 
-Se analizaran un total de 197 stocks, tomando los más conocidos a nivel internacional.
+Se analizaran cerca de ~200 stocks, tomando algunos de los más conocidos a nivel internacional:
 
 ```{r}
 
-symbols <- c("AAPL", "MSFT", "GOOG", "AMZN", "META", "TSLA", "BRK.A", "V", "JNJ", "WMT",
-             "JPM", "MA", "PG", "UNH", "NVDA", "HD", "DIS", "PYPL", "VZ", "ADBE",
-             "NFLX", "INTC", "CMCSA", "KO", "PFE", "PEP", "T", "MRK", "CSCO", "XOM",
-             "ABT", "CVX", "NKE", "LLY", "ORCL", "MCD", "DHR", "COST", "WFC", "MDT",
-             "ACN", "HON", "BMY", "AVGO", "TXN", "QCOM", "UNP", "NEE", "PM", "LIN",
-             "AMGN", "LOW", "UPS", "MS", "IBM", "SBUX", "RTX", "GS", "BLK", "CAT",
-             "SPGI", "PLD", "AMT", "TMO", "INTU", "CVS", "ISRG", "ELV", "GE", "LMT",
-             "MDLZ", "BKNG", "DE", "ADP", "AXP", "SYK", "GILD", "ZTS", "CI", "CB",
-             "MMC", "ADI", "MO", "SCHW", "USB", "C", "DUK", "SO", "TGT", "BDX",
-             "PNC", "APD", "CL", "ITW", "NSC", "ICE", "CCI", "REGN", "EW", "SHW",
-             "FIS", "TJX", "NOC", "ETN", "GM", "D", "ECL", "EMR", "MET", "ILMN",
-             "AON", "WM", "PSA", "FISV", "HUM", "MCO", "ADSK", "AEP", "SRE", "SPG",
-             "MCHP", "IDXX", "ROP", "KMB", "EXC", "ORLY", "TRV", "MSCI", "CTSH",
-             "MAR", "AIG", "LRCX", "KLAC", "CDNS", "CTAS", "AZO", "CME", "APTV",
-             "PRU", "WBA", "BIIB", "TEL", "EOG", "PPG", "STZ", "MPC", "ALL", "AFL",
-             "ATVI", "DLR", "SYY", "BK", "A", "HPQ", "MNST", "WELL", "ROST", "YUM",
-             "OXY", "PSX", "KHC", "DG", "HLT", "DHI", "MSI", "TT", "VLO", "GLW",
-             "KEYS", "FTNT", "ODFL", "PAYX", "WMB", "CNC", "MTD", "PGR", "EBAY",
-             "HCA", "CTVA", "LHX", "NEM", "FAST", "AMP", "KR", "VRSK", "WEC", "EQR",
-             "PCAR", "DLTR", "SBAC", "TSN", "BAX", "DTE", "PEG", "ES", "ED", "FE")
+symbols <- c("ABT", "ACN", "ATVI", "ADBE", "AFL", "A", "APD", "ALL", "GOOG", "MO", "AMZN", 
+             "AEP", "AXP", "AIG", "AMT", "AMP", "AMGN", "ADI", "AON", "AAPL", "APTV", "T", 
+             "ADSK", "ADP", "AZO", "BAX", "BDX", "BIIB", "BLK", "BMY", "AVGO", "CDNS", 
+             "CAT", "CNC", "SCHW", "CVX", "CB", "CI", "CTAS", "CSCO", "C", "CME", "KO", 
+             "CTSH", "CL", "CMCSA", "ED", "STZ", "GLW", "COST", "CCI", "CVS", "DHI", 
+             "DHR", "DE", "DLR", "DG", "DLTR", "D", "DTE", "DUK", "ETN", "EBAY", "ECL", 
+             "EW", "EMR", "EOG", "EQR", "ES", "EXC", "XOM", "FAST", "FIS", "FE", "FISV", 
+             "GE", "GM", "GILD", "GS", "HCA", "HLT", "HD", "HON", "HPQ", "HUM", "IDXX", 
+             "ITW", "ILMN", "INTC", "ICE", "IBM", "INTU", "ISRG", "JNJ", "JPM", "KMB", 
+             "KLAC", "KHC", "KR", "LRCX", "LLY", "LMT", "LOW", "MPC", "MAR", "MMC", "MA", 
+             "MCD", "MDT", "MRK", "MET", "MTD", "MCHP", "MSFT", "MDLZ", "MNST", "MCO", 
+             "MS", "MSI", "NFLX", "NEM", "NEE", "NKE", "NSC", "NOC", "NVDA", "ORLY", "OXY", 
+             "ORCL", "PCAR", "PAYX", "PYPL", "PEP", "PFE", "PM", "PSX", "PNC", "PPG", "PG", 
+             "PGR", "PLD", "PRU", "PEG", "PSA", "QCOM", "REGN", "ROP", "ROST", "SPGI", 
+             "SBAC", "SRE", "SHW", "SPG", "SO", "SBUX", "SYK", "SYY", "TGT", "TEL", "TXN", 
+             "BK", "TRV", "DIS", "TMO", "TJX", "TSN", "USB", "UNP", "UNH", "UPS", "VLO", 
+             "VRSK", "VZ", "V", "WMT", "WBA", "WM", "WEC", "WFC", "WMB", "YUM", "ZTS")
 
 
+sectors <- c("Health Care", "Information Technology", "Information Technology", 
+             "Information Technology", "Financials", "Health Care", "Materials", 
+             "Financials", "Information Technology", "Consumer Staples", "Consumer Discretionary", 
+             "Utilities", "Financials", "Financials", "Real Estate", "Financials", 
+             "Health Care", "Information Technology", "Financials", "Information Technology", 
+             "Consumer Discretionary", "Telecommunication Services", "Information Technology", 
+             "Information Technology", "Consumer Discretionary", "Health Care", "Health Care", 
+             "Health Care", "Financials", "Health Care", "Information Technology", 
+             "Information Technology", "Industrials", "Health Care", "Financials", 
+             "Energy", "Financials", "Health Care", "Industrials", "Information Technology", 
+             "Financials", "Financials", "Consumer Staples", "Information Technology", 
+             "Consumer Staples", "Consumer Discretionary", "Utilities", "Consumer Staples", 
+             "Information Technology", "Consumer Staples", "Real Estate", "Consumer Staples", 
+             "Consumer Discretionary", "Health Care", "Industrials", "Real Estate", 
+             "Consumer Discretionary", "Consumer Discretionary", "Utilities", "Utilities", 
+             "Utilities", "Industrials", "Information Technology", "Materials", 
+             "Health Care", "Industrials", "Energy", "Real Estate", "Utilities", 
+             "Utilities", "Energy", "Industrials", "Information Technology", 
+             "Utilities", "Information Technology", "Industrials", "Consumer Discretionary", 
+             "Health Care", "Financials", "Health Care", "Consumer Discretionary", 
+             "Consumer Discretionary", "Industrials", "Information Technology", 
+             "Health Care", "Health Care", "Industrials", "Health Care", "Information Technology", 
+             "Financials", "Information Technology", "Information Technology", 
+             "Health Care", "Health Care", "Financials", "Consumer Staples", 
+             "Information Technology", "Consumer Staples", "Consumer Staples", 
+             "Information Technology", "Health Care", "Industrials", "Consumer Discretionary", 
+             "Energy", "Consumer Discretionary", "Financials", "Information Technology", 
+             "Consumer Discretionary", "Health Care", "Health Care", "Financials", 
+             "Health Care", "Information Technology", "Information Technology", 
+             "Consumer Staples", "Consumer Staples", "Financials", "Financials", 
+             "Information Technology", "Information Technology", "Materials", 
+             "Utilities", "Consumer Discretionary", "Industrials", "Industrials", 
+             "Information Technology", "Consumer Discretionary", "Energy", 
+             "Information Technology", "Industrials", "Information Technology", 
+             "Information Technology", "Consumer Staples", "Health Care", 
+             "Consumer Staples", "Energy", "Financials", "Materials", "Consumer Staples", 
+             "Financials", "Real Estate", "Financials", "Utilities", "Real Estate", 
+             "Information Technology", "Health Care", "Industrials", "Consumer Discretionary", 
+             "Financials", "Real Estate", "Utilities", "Materials", "Real Estate", 
+             "Utilities", "Consumer Discretionary", "Health Care", "Consumer Staples", 
+             "Consumer Discretionary", "Information Technology", "Information Technology", 
+             "Financials", "Financials", "Consumer Discretionary", "Health Care", 
+             "Consumer Discretionary", "Consumer Staples", "Financials", "Industrials", 
+             "Health Care", "Industrials", "Energy", "Industrials", "Telecommunication Services", 
+             "Information Technology", "Consumer Staples", "Consumer Staples", 
+             "Industrials", "Utilities", "Financials", "Energy", "Consumer Discretionary", 
+             "Health Care")
 
-length(symbols)
+data <- data.frame(symbols = symbols, sectors = sectors)
+
+data
+
 ```
 ## Ventana temporal
 
@@ -103,11 +150,11 @@ Para evaluar estos valores en diferentes **condiciones de mercado** (por ejemplo
 
 ```{r}
 
-end_date <- Sys.Date() - days(1) # ayer
-start_date <- end_date - months(36)
+# end_date <- Sys.Date() - days(1) # ayer
+# start_date <- end_date - months(36)
 
-print(end_date)
-print(start_date)
+# print(end_date)
+# print(start_date)
 
 ```
 
@@ -129,23 +176,14 @@ get_stock_data <- function(symbol) {
   })
 }
 
-get_stock_sector <- function(symbol) {
-  url <- paste0("https://finance.yahoo.com/quote/", symbol, "/profile?p=", symbol)
-  webpage <- read_html(url)
-  sector <- webpage %>%
-    html_nodes(xpath = '//span[contains(text(), "Sector")]/following-sibling::span') %>%
-    html_text()
-  return(sector)
-}
-
 ```
 
 Se aplica la función creada para las stocks definidas previamente, aplicando un merge para combinar las series temporales de cada símbolo en un único xts (serie temporal extensible).
 
 ```{r}
 
-stock_list <- lapply(symbols, get_stock_data)
-stock_data <- do.call(merge, stock_list)
+# stock_list <- lapply(symbols, get_stock_data)
+# stock_data <- do.call(merge, stock_list)
 
 ```
 
@@ -155,11 +193,11 @@ Para evitar volver a consultar la API de yahoo finance:
 
 ```{r}
 
-stock_data <- as.data.frame(stock_data)
+# stock_data <- as.data.frame(stock_data)
 
-stock_data$fecha <- rownames(stock_data)
+# stock_data$fecha <- rownames(stock_data)
 
-write.table(stock_data, file = sprintf("yahoo_data_%s.txt", end_date), row.names = F, col.names = T)
+# write.table(stock_data, file = sprintf("yahoo_data_%s.txt", end_date), row.names = F, col.names = T)
 
 ```
 
@@ -175,6 +213,9 @@ stock_data <- read.table("yahoo_data_2024-12-04.txt", header = TRUE)
 # Convertir la columna 'fecha' a nombres de fila
 rownames(stock_data) <- stock_data$fecha
 stock_data$fecha <- NULL
+
+# Filtrar por stocks bajo estudio
+stock_data <- stock_data %>% select(intersect(names(stock_data), symbols))
 
 # Mostrar el resultado
 stock_data
@@ -235,7 +276,7 @@ Tomando solo 30 stocks stocks al azar:
 
 # Seleccionar 30 variables al azar de stock_data_df excluyendo la primera columna
 set.seed(42) # Fijar semilla para reproducibilidad
-random_columns <- sample(names(stock_data_df)[-1], 30)
+random_columns <- sample(names(stock_data_df)[-1], 33)
 
 # Crear un subconjunto del dataframe con las columnas seleccionadas al azar
 stock_data_random <- stock_data_df[random_columns]
@@ -254,8 +295,8 @@ Preparando un filtro para las variables muy correlacionadas (abs > 0.9), para vi
 ```{r}
 
 # Filtrar símbolos con alta correlación en valores
-pos_corr_pairs_values <- which(cor_matrix_values > 0.9 & abs(cor_matrix_values) < 1, arr.ind = TRUE)
-neg_corr_pairs_values <- which(cor_matrix_values < -0.9 & abs(cor_matrix_values) < 1, arr.ind = TRUE)
+pos_corr_pairs_values <- which(cor_matrix_values > 0.8 & abs(cor_matrix_values) < 1, arr.ind = TRUE)
+neg_corr_pairs_values <- which(cor_matrix_values < -0.8 & abs(cor_matrix_values) < 1, arr.ind = TRUE)
 
 # Asumimos que ya existen las variables pos_corr_pairs_values y neg_corr_pairs_values
 # provenientes del código que mostraste.
@@ -279,24 +320,33 @@ head(pos_pairs)
 head(neg_pairs)
 ```
 
-Entre los pares áltamente correlacionados, podemos comparar a META (comunicación y tecnología) vs. LIN (materiales químicos). Con una correlación positiva de 92.5 %, es muy poco probable que el crecimiento de una impacte directamente en el crecimiento de la otra.
+Ahora bien, que sectores corresponden a estas correlaciones:
 
-Por otra parte, podemos comparar a HUM (salud) vs. AXP (finanzas), con una correlación negativa de 90.1 %. En este caso, también resulta poco probable que la caída de una impacte directamente en la caída de la otra.
+```{r}
+subset(data, symbols %in% c("MMC", "HLT"))
+
+```
+
+```{r}
+subset(data, symbols %in% c("MMC", "UPS"))
+
+```
+
+Encontramos casos correlaciones que parecen no tener una colinealidad o relación directa, según su sector.
 
 Filtrando dataframes para un EDA:
 
 ```{r}
 
 # Columnas con correlacion altamente positiva
-pos_corr_stocks <- stock_data_df %>% select(Date, META, LIN)
+pos_corr_stocks <- stock_data_df %>% select(Date, MMC, HLT)
 
 # Columnas con correlacion altamente positiva
-neg_corr_stocks <- stock_data_df %>% select(Date, HUM, NFLX)
+neg_corr_stocks <- stock_data_df %>% select(Date, MMC, UPS)
 
 stock_data_df
 
 ```
-
 
 ## Exploratory Data Analysis (EDA)
 
@@ -367,7 +417,9 @@ CONCLUSION: Analizar valores bursátiles/stocks e intentar relacionarlos por sus
 
 ## Graphical LASSO
 
-Aplicación de la técnica, paso por paso, partiendo del dataframe de retornos en lugar de los valores de cierre. Esto, resulta ventajoso para: 
+### Aplicación a los retornos
+
+Aplicación de la técnica, paso por paso, partiendo del **dataframe de retornos** en lugar de los valores de cierre. Esto, resulta ventajoso para: 
 
 - Eliminar las tendencias de largo plazo
 - Sumar comparabilidad (retornos adimencionales)
@@ -375,31 +427,30 @@ Aplicación de la técnica, paso por paso, partiendo del dataframe de retornos e
 - Reducir impacto de eventos corporativos (splits o distribución de dividendos)
 - Foco en las ganancias de los activos, con mayor valor en el mundo del trading
 
-### Cálculo de la Matriz de Covarianza
+#### Cálculo de la Matriz de Covarianza
 
 ```{r}
 
-# con returns el método falla y no encuentra relaciones
-# cov_matrix <- cov(na.omit(returns)) # al omitir na se pierden varios años de datos VER
-
-cov_matrix <- cov(na.omit(stock_data))
+cov_matrix <- cov(na.omit(returns)) # al omitir na se pierden varios años de datos VER
 
 ```
 
-### Aplicación de Graphical LASSO
+#### Aplicación de Graphical LASSO
 
-Graphical LASSO estima una **matriz de precisión esparsa** (\( \Omega \)), que es la inversa de la matriz de covarianza regularizada. La matriz de precisión es clave porque cada elemento \( \Omega_{jk} \) describe la **dependencia condicional** entre dos variables (\( X_j \) y \( X_k \)), es decir, cuánto están relacionadas cuando se eliminan los efectos de todas las demás variables.
+La matriz de covarianza contiene la información estadística de cómo las variables (valores o retornos) varian conjuntamente. La matriz de correlación usa a la covarianza y trata de indicar la intensidad y la dirección de la relación entre variables, tal como analizamos anteriormente.
 
-**Regularización en el Graphical LASSO**
+Sin embargo, existen correlaciones espureas o indirectas, indescifrables a partir de una matriz de correlación.
 
-El algoritmo de Graphical LASSO resuelve el siguiente problema de optimización:
+Graphical LASSO aborda este problema trabajando sobre la **matriz de precisión** que, para cada elemento \( \Omega_{jk} \) describe la **dependencia condicional** entre dos variables (\( X_j \) y \( X_k \)), es decir, cuánto están relacionadas cuando se eliminan los efectos de todas las demás variables.
+
+Luego, la **matriz de precisión** \( \Omega \) puede ser aproximada por la inversa de la matriz de covarianza \( \Sigma^-1 \). Entonces, Graphical LASSO estima una **matriz de precisión esparsa** \( \hat{\Omega} \), que es la inversa de la matriz de covarianza regularizada con la siguiente función de optimización:
 
 \[
 \hat{\Omega} = \underset{\Omega \succ 0}{\arg \min} \ \Big[ \text{tr}(\Sigma \Omega) - \log\det(\Omega) + \lambda \|\Omega\|_1 \Big]
 \]
 
 Donde:
-- \( \Sigma \): matriz de covarianza empírica.
+- \( \Sigma \): matriz de covarianza.
 - \( \Omega \): matriz de precisión (inversa de la covarianza).
 - \( \text{tr}(\Sigma \Omega) \): traza del producto entre \( \Sigma \) y \( \Omega \).
 - \( \log\det(\Omega) \): logaritmo del determinante de \( \Omega \), que garantiza que \( \Omega \) sea positiva definida.
@@ -408,7 +459,7 @@ Donde:
 
 **Intuición del término de regularización**
 
-A medida que \( \lambda \) aumenta, más elementos de \( \Omega \) se fuerzan a cero, eliminando conexiones entre variables y generando un grafo más esparso. Un \( \lambda \) bajo permite conexiones más débiles y genera un grafo más denso.
+A medida que \( \lambda \) aumenta, más elementos de \( \hat{\Omega} \) se fuerzan a cero, eliminando conexiones entre variables y generando un grafo más esparso. Un \( \lambda \) bajo permite conexiones más débiles y genera un grafo más denso.
 
 #### Matriz de precisión
 
@@ -416,7 +467,7 @@ Usamos la función `glasso` para resolver este problema. El resultado incluye la
 
 ```{r}
 
-rho <- 0.5  # Valor de regularización
+rho <- 0.1  # Valor de regularización bajo
 glasso_result <- glasso(cov_matrix, rho = rho)
 
 # Matriz de precisión
@@ -456,10 +507,6 @@ diag(partial_corr_matrix) <- 0  # Evitar autoconexiones
 colnames(partial_corr_matrix) <- colnames(returns)
 rownames(partial_corr_matrix) <- colnames(returns)
 
-print(partial_corr_matrix)
-
-partial_corr_matrix > 0.1
-
 ```
 
 ### Visualizar las relaciones como un gráfico de red
@@ -469,38 +516,175 @@ Usamos igraph para construir y visualizar un gráfico basado en las conexiones s
 ```{r}
 
 # Construir grafo desde la matriz de correlación parcial
-stock_graph <- graph_from_adjacency_matrix(partial_corr_matrix > 0.1, mode = "undirected", weighted = TRUE)
+stock_graph <- graph_from_adjacency_matrix(partial_corr_matrix > 0.1, mode = "max", weighted = TRUE)
 
-# Eliminar nodos sin conexiones
-isolated <- which(degree(stock_graph) == 0)
-stock_graph <- delete_vertices(stock_graph, isolated)
+# Asignar sectores a los nodos
+V(stock_graph)$sector <- data$sectors[match(V(stock_graph)$name, data$symbols)]
 
-# Asignar colores a los nodos
-num_vertices <- vcount(stock_graph)  # Número de nodos en el grafo
-palette <- colorRampPalette(RColorBrewer::brewer.pal(12, "Set3"))(num_vertices)
-#palette <- RColorBrewer::brewer.pal(min(num_vertices, 12), name = "Set3")  # Asegurar no exceder el límite de 12 colores
-V(stock_graph)$color <- palette[1:num_vertices]  # Asignar colores a los nodos
+# Crear un vector de colores únicos para cada sector
+unique_sectors <- unique(V(stock_graph)$sector)
+sector_colors <- rainbow(length(unique_sectors))  # Genera una paleta de colores
 
-# Visualizar el grafo
-plot(stock_graph, vertex.size = 10, vertex.label.cex = 0.8, edge.width = E(stock_graph)$weight * 2)
+# Mapear cada sector a un color
+sector_color_map <- setNames(sector_colors, unique_sectors)
 
-```
+# Asignar colores a los vértices según su sector
+V(stock_graph)$color <- sector_color_map[V(stock_graph)$sector]
 
-```{r}
-
-
-
-```
-
-```{r}
-
-
+plot(stock_graph,
+     vertex.size = 10,
+     vertex.label = NULL,
+     edge.width = E(stock_graph)$weight * 2,
+     vertex.color = V(stock_graph)$color,
+     main = "Grafo de acciones - según retornos y coloreado sector")
 
 ```
 
+Gráfico HTML interactivo con graphjs:
+
 ```{r}
 
+# make interactive graph
+stock_graph_js <- graphjs(g=stock_graph, 
+                layout_with_fr(stock_graph, weights=30*E(stock_graph)$width, dim=3),
+                vertex.size=0.7,
+                vertex.frame.color="white",
+                vertex.frame.width=0.2,
+                vertex.label=paste(names(V(stock_graph)), "-", V(stock_graph)$sector),  # Asignar nombres que incluyan el sector
+                vertex.color = V(stock_graph)$color,
+                brush=TRUE,  # resalte del nodo con un click
+                showLabels=TRUE,  # mostrar nombres con hover
+                edge.alpha=0.6,  # transparencia de las conexiones
+                bg="black",  # background
+                main="Stocks graph using returns with Graphical Lasso")
 
+# save graph
+graph_filename <- paste0("returns_graph_rho_", rho, "_with_sectors.html")
+saveWidget(stock_graph_js, file=graph_filename)
+
+# open in browser
+browseURL(graph_filename)
+
+```
+
+OBSERVACIÓN; con returns el método falla y no encuentra relaciones.
+
+
+### Aplicación a los valores de cierre
+
+Aplicación de la técnica, paso por paso, partiendo del **dataframe de valores de cierre** de los stocks.
+
+#### Cálculo de la Matriz de Covarianza
+
+```{r}
+
+cov_matrix <- cov(na.omit(stock_data)) # al omitir na se pierden varios años de datos VER
+
+```
+
+#### Matriz de precisión
+
+Usamos la función `glasso` para resolver este problema. El resultado incluye la matriz de precisión regularizada (\( \hat{\Omega} \)):
+
+```{r}
+
+rho <- 0.9  # Valor de regularización elevado
+glasso_result <- glasso(cov_matrix, rho = rho)
+
+# Matriz de precisión
+precision_matrix <- glasso_result$wi
+
+```
+
+#### Matriz de correlación parcial
+
+La correlación parcial mide la relación directa entre dos variables \( X_j \) y \( X_k \), eliminando los efectos de todas las demás variables (\( X_{\setminus\{j,k\}} \)). Se calcula a partir de la matriz de precisión regularizada (\( \Omega \)).
+
+Dado que \( \Omega \) es la matriz de precisión, la correlación parcial entre \( X_j \) y \( X_k \) está dada por:
+
+\[
+R_{jk} = -\frac{\Omega_{jk}}{\sqrt{\Omega_{jj} \cdot \Omega_{kk}}}
+\]
+
+Donde:
+- \( \Omega_{jk} \): elemento de la matriz de precisión que representa la dependencia condicional entre \( X_j \) y \( X_k \).
+- \( \Omega_{jj} \) y \( \Omega_{kk} \): elementos diagonales de \( \Omega \), que representan la varianza condicional de \( X_j \) y \( X_k \).
+
+**Intuición matemática**
+
+Si \( \Omega_{jk} \) es cero, \( R_{jk} = 0 \). Esto indica que \( X_j \) y \( X_k \) son condicionalmente independientes, dado el resto de las variables. Si \( \Omega_{jk} \neq 0 \), el signo y la magnitud de \( R_{jk} \) determinan la dirección y fuerza de la relación directa entre \( X_j \) y \( X_k \).
+
+
+```{r}
+
+# Calcular matriz de correlación parcial
+partial_corr_matrix <- matrix(0, nrow = nrow(precision_matrix), ncol = ncol(precision_matrix))
+for (j in 1:nrow(precision_matrix)) {
+  for (k in 1:ncol(precision_matrix)) {
+    partial_corr_matrix[j, k] <- -precision_matrix[j, k] / sqrt(precision_matrix[j, j] * precision_matrix[k, k])
+  }
+}
+diag(partial_corr_matrix) <- 0  # Evitar autoconexiones
+colnames(partial_corr_matrix) <- colnames(returns)
+rownames(partial_corr_matrix) <- colnames(returns)
+
+```
+
+#### Visualizar las relaciones como un gráfico de red
+
+Usamos igraph para construir y visualizar un gráfico basado en las conexiones significativas en la matriz de correlación parcial:
+
+```{r}
+
+# Construir grafo desde la matriz de correlación parcial
+stock_graph <- graph_from_adjacency_matrix(partial_corr_matrix > 0.1, mode = "max", weighted = TRUE)
+
+# Asignar sectores a los nodos
+V(stock_graph)$sector <- data$sectors[match(V(stock_graph)$name, data$symbols)]
+
+# Crear un vector de colores únicos para cada sector
+unique_sectors <- unique(V(stock_graph)$sector)
+sector_colors <- rainbow(length(unique_sectors))  # Genera una paleta de colores
+
+# Mapear cada sector a un color
+sector_color_map <- setNames(sector_colors, unique_sectors)
+
+# Asignar colores a los vértices según su sector
+V(stock_graph)$color <- sector_color_map[V(stock_graph)$sector]
+
+plot(stock_graph,
+     vertex.size = 10,
+     vertex.label = NULL,
+     edge.width = E(stock_graph)$weight * 2,
+     vertex.color = V(stock_graph)$color,
+     main = "Grafo de acciones - según valores y coloreado sector")
+
+```
+
+Gráfico HTML interactivo con graphjs:
+
+```{r}
+
+# make interactive graph
+stock_graph_js <- graphjs(g=stock_graph, 
+                layout_with_fr(stock_graph, weights=30*E(stock_graph)$width, dim=3),
+                vertex.size=0.7,
+                vertex.frame.color="white",
+                vertex.frame.width=0.2,
+                vertex.label=paste(names(V(stock_graph)), "-", V(stock_graph)$sector),  # Asignar nombres que incluyan el sector
+                vertex.color = V(stock_graph)$color,
+                brush=TRUE,  # resalte del nodo con un click
+                showLabels=TRUE,  # mostrar nombres con hover
+                edge.alpha=0.6,  # transparencia de las conexiones
+                bg="black",  # background
+                main="Stocks graph using values with Graphical Lasso")
+
+# save graph
+graph_filename <- paste0("values_graph_rho_", rho, "_with_sectors.html")
+saveWidget(stock_graph_js, file=graph_filename)
+
+# open in browser
+browseURL(graph_filename)
 
 ```
 

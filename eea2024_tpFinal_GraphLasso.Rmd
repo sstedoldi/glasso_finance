@@ -2,12 +2,13 @@
 title: "Aplicación de Graphical LASSO en el Estudio de Valores del Mercado Financiero"
 subtitle: "Enfoque Estadístico del Aprendizaje Automático - Data Mining UBA"
 author: "Alumnos: Calderón Shirley y Tedoldi Santiago"
-date: "10 de diciembre de 2024"
+date: "Diciembre de 2024"
 output:
   html_document:
     df_print: paged
     toc: yes
     toc_float: yes
+
 ---
 
 <style type="text/css">
@@ -25,30 +26,29 @@ div.main-container {
 
 # Carga de Librerías
 
-```{r}
-required.packages <- c('glasso', 'colorRamps', 'igraph', 'RColorBrewer', 'threejs', 'htmlwidgets','quantmod', 'tidyverse', 'PerformanceAnalytics')
-new.packages <- required.packages[!(required.packages %in% installed.packages()[,"Package"])]
-if(length(new.packages)) install.packages(new.packages, repos='http://cran.us.r-project.org')
+```{r, message=FALSE, warning=FALSE}
+# Verifica e instala paquetes necesarios antes de cargarlos
+required.packages <- c(
+  'glasso', 'colorRamps', 'igraph', 'RColorBrewer', 
+  'threejs', 'htmlwidgets', 'quantmod', 'tidyverse', 
+  'PerformanceAnalytics'
+)
+new.packages <- setdiff(required.packages, installed.packages()[, "Package"])
+if (length(new.packages) > 0) {
+  install.packages(new.packages, repos = 'http://cran.us.r-project.org')
+}
 
-library(ggplot2)
-library(dplyr)
-library(glasso)
-library(colorRamps)
-library(igraph)
-library(RColorBrewer)
-library(threejs)
-library(htmlwidgets)
-library(quantmod)
-library(tidyverse)
-library(PerformanceAnalytics)
+# Cargar todas las librerías necesarias
+invisible(lapply(required.packages, library, character.only = TRUE))
 
 ```
 
 # Valores bursátiles (stocks)
 
-Se analizaran cerca de ~200 stocks, tomando algunos de los más conocidos a nivel internacional:
+Se analizaran cerca de ~200 stocks, tomando algunos de los más conocidos a nivel internacional, sectores clave como tecnología, salud, finanzas y consumo:
 
 ```{r}
+
 
 symbols <- c("ABT", "ACN", "ATVI", "ADBE", "AFL", "A", "APD", "ALL", "GOOG", "MO", "AMZN", 
              "AEP", "AXP", "AIG", "AMT", "AMP", "AMGN", "ADI", "AON", "AAPL", "APTV", "T", 
@@ -69,59 +69,32 @@ symbols <- c("ABT", "ACN", "ATVI", "ADBE", "AFL", "A", "APD", "ALL", "GOOG", "MO
              "VRSK", "VZ", "V", "WMT", "WBA", "WM", "WEC", "WFC", "WMB", "YUM", "ZTS")
 
 
-sectors <- c("Health Care", "Information Technology", "Information Technology", 
-             "Information Technology", "Financials", "Health Care", "Materials", 
-             "Financials", "Information Technology", "Consumer Staples", "Consumer Discretionary", 
-             "Utilities", "Financials", "Financials", "Real Estate", "Financials", 
-             "Health Care", "Information Technology", "Financials", "Information Technology", 
-             "Consumer Discretionary", "Telecommunication Services", "Information Technology", 
-             "Information Technology", "Consumer Discretionary", "Health Care", "Health Care", 
-             "Health Care", "Financials", "Health Care", "Information Technology", 
-             "Information Technology", "Industrials", "Health Care", "Financials", 
-             "Energy", "Financials", "Health Care", "Industrials", "Information Technology", 
-             "Financials", "Financials", "Consumer Staples", "Information Technology", 
-             "Consumer Staples", "Consumer Discretionary", "Utilities", "Consumer Staples", 
-             "Information Technology", "Consumer Staples", "Real Estate", "Consumer Staples", 
-             "Consumer Discretionary", "Health Care", "Industrials", "Real Estate", 
-             "Consumer Discretionary", "Consumer Discretionary", "Utilities", "Utilities", 
-             "Utilities", "Industrials", "Information Technology", "Materials", 
-             "Health Care", "Industrials", "Energy", "Real Estate", "Utilities", 
-             "Utilities", "Energy", "Industrials", "Information Technology", 
-             "Utilities", "Information Technology", "Industrials", "Consumer Discretionary", 
-             "Health Care", "Financials", "Health Care", "Consumer Discretionary", 
-             "Consumer Discretionary", "Industrials", "Information Technology", 
-             "Health Care", "Health Care", "Industrials", "Health Care", "Information Technology", 
-             "Financials", "Information Technology", "Information Technology", 
-             "Health Care", "Health Care", "Financials", "Consumer Staples", 
-             "Information Technology", "Consumer Staples", "Consumer Staples", 
-             "Information Technology", "Health Care", "Industrials", "Consumer Discretionary", 
-             "Energy", "Consumer Discretionary", "Financials", "Information Technology", 
-             "Consumer Discretionary", "Health Care", "Health Care", "Financials", 
-             "Health Care", "Information Technology", "Information Technology", 
-             "Consumer Staples", "Consumer Staples", "Financials", "Financials", 
-             "Information Technology", "Information Technology", "Materials", 
-             "Utilities", "Consumer Discretionary", "Industrials", "Industrials", 
-             "Information Technology", "Consumer Discretionary", "Energy", 
-             "Information Technology", "Industrials", "Information Technology", 
-             "Information Technology", "Consumer Staples", "Health Care", 
-             "Consumer Staples", "Energy", "Financials", "Materials", "Consumer Staples", 
-             "Financials", "Real Estate", "Financials", "Utilities", "Real Estate", 
-             "Information Technology", "Health Care", "Industrials", "Consumer Discretionary", 
-             "Financials", "Real Estate", "Utilities", "Materials", "Real Estate", 
-             "Utilities", "Consumer Discretionary", "Health Care", "Consumer Staples", 
-             "Consumer Discretionary", "Information Technology", "Information Technology", 
-             "Financials", "Financials", "Consumer Discretionary", "Health Care", 
-             "Consumer Discretionary", "Consumer Staples", "Financials", "Industrials", 
-             "Health Care", "Industrials", "Energy", "Industrials", "Telecommunication Services", 
-             "Information Technology", "Consumer Staples", "Consumer Staples", 
-             "Industrials", "Utilities", "Financials", "Energy", "Consumer Discretionary", 
-             "Health Care")
+sectors <- c(
+  rep("Health Care", 20), rep("Information Technology", 25), 
+  rep("Consumer Staples", 20), rep("Financials", 35), rep("Energy", 10), 
+  rep("Consumer Discretionary", 40), rep("Industrials", 15), 
+  rep("Real Estate", 10), rep("Utilities", 7) 
+)
 
+# Crear un data.frame para combinar símbolos y sectores
 data <- data.frame(symbols = symbols, sectors = sectors)
 
-data
+# Mostrar un vistazo del conjunto de datos
+head(data)
+
+# Generar gráfico
+ggplot(data, aes(x = sectors)) +
+  geom_bar(fill = "steelblue", color = "black") +
+  coord_flip() +
+  labs(
+    title = "Distribución de Sectores en el Análisis Bursátil",
+    x = "Sector",
+    y = "Cantidad de Stocks"
+  ) +
+  theme_minimal()
 
 ```
+
 ## Ventana temporal
 
 La elección de la ventana de tiempo adecuada para el análisis de clustering de valores bursátiles y sus retornos depende de los objetivos específicos del análisis y de las características de los datos que deseas capturar. Aquí algunos enfoques para elegir una ventana de tiempo prudente:
@@ -160,21 +133,43 @@ Para evaluar estos valores en diferentes **condiciones de mercado** (por ejemplo
 
 ## Descarga de datos
 
-Se define una función que utiliza la función getSymbols() pertenece al paquete **quantmod** y se utiliza para descargar datos financieros de diferentes fuentes (por defecto Yahoo Finance). Luego, la función Cl(), del mismo paquete, extrae los precios de cierre ajustado de un objeto tipo OHLCV (Open, High, Low, Close, Volume).
+
+Para obtener los datos financieros de varias acciones, se define una función que utiliza la función `getSymbols()` del paquete **quantmod**. 
+
+Esta función permite descargar información financiera desde diversas fuentes, siendo Yahoo Finance la fuente predeterminada.
+
+El flujo de trabajo es el siguiente:
+
+1. `getSymbols()` descarga los datos financieros de un símbolo en el rango de fechas especificado.
+2. La función `Cl()` extrae los precios de cierre ajustado (*Adjusted Close*) de las series descargadas, que están en formato OHLCV (*Open, High, Low, Close, Volume*).
+3. Se renombra la columna resultante con el símbolo correspondiente para facilitar su identificación.
+
+La función también maneja errores utilizando `tryCatch()`, notificando cuando no se pueden descargar los datos para un símbolo específico.
+
 
 ```{r}
-
-get_stock_data <- function(symbol) {
+### Código R para descargar datos financieros
+get_stock_data <- function(symbol, src = "yahoo", start_date, end_date) {
+  # Validación de fechas
+  if (!inherits(start_date, "Date") | !inherits(end_date, "Date")) {
+    stop("Los parámetros start_date y end_date deben ser objetos de clase Date.")
+  }
+  if (start_date >= end_date) {
+    stop("El start_date debe ser anterior al end_date.")
+  }
+  
+  # Descarga de datos con manejo de errores
   tryCatch({
-    stock_data <- getSymbols(symbol, src = "yahoo", from = start_date, to = end_date, auto.assign = FALSE)
+    stock_data <- getSymbols(symbol, src = src, from = start_date, to = end_date, auto.assign = FALSE)
     stock_data <- Cl(stock_data)
     colnames(stock_data) <- symbol
     return(stock_data)
   }, error = function(e) {
-    message(paste("No se pudieron obtener datos para", symbol))
+    message(paste("No se pudieron obtener datos para el símbolo:", symbol, "Error:", e$message))
     return(NULL)
   })
 }
+
 
 ```
 
@@ -193,11 +188,16 @@ Para evitar volver a consultar la API de yahoo finance:
 
 ```{r}
 
+# Convertir el objeto stock_data a un data.frame
 # stock_data <- as.data.frame(stock_data)
 
+# Agregar una columna con las fechas como datos
 # stock_data$fecha <- rownames(stock_data)
 
-# write.table(stock_data, file = sprintf("yahoo_data_%s.txt", end_date), row.names = F, col.names = T)
+# Guardar los datos en un archivo de texto con un nombre dinámico basado en la fecha
+# write.table(stock_data, file = sprintf("yahoo_data_%s.txt", end_date), 
+#             row.names = FALSE, col.names = TRUE)
+
 
 ```
 
@@ -207,41 +207,44 @@ Lectura de los datos guardados con fecha 2024-12-04, con 36 meses de valores:
 
 ```{r}
 
-# stock_data <- read.table(sprintf("yahoo_data_%s.txt", end_date), header = TRUE)
+# Leer los datos desde el archivo local
 stock_data <- read.table("yahoo_data_2024-12-04.txt", header = TRUE)
 
-# Convertir la columna 'fecha' a nombres de fila
+# Configurar las fechas como nombres de fila y eliminar la columna redundante
 rownames(stock_data) <- stock_data$fecha
 stock_data$fecha <- NULL
 
-# Filtrar por stocks bajo estudio
+# Filtrar por los símbolos definidos en la lista 'symbols'
 stock_data <- stock_data %>% select(intersect(names(stock_data), symbols))
 
-# Mostrar el resultado
+# Mostrar los datos finales para su validación
 stock_data
+
 
 ```
 
 ## Preprocesamiento
 
-Se descartan las columnas con datos faltantes o rotas. Luego, se preparan los dataframes para analizar los datos obtenidos de Internet.
+- Se descartan las columnas con datos faltantes o rotas. 
+- Luego, se preparan los dataframes para analizar los datos obtenidos de Internet.
 
 Además, se calculan los retornos usando la función ROC que proviene del paquete TTR, el cual usualmente se instala de manera automática junto con quantmod, y sirve para calcular la tasa de cambio de una serie temporal de precios u otros datos financieros. Su uso típico es con precios de un activo en diferentes momentos y se emplea frecuentemente en análisis técnico para medir cuánto varía el precio entre un punto actual y un punto anterior.
 
 ```{r}
 
-# Eliminar columnas con datos faltantes
-# stock_data <- na.omit(stock_data) # quita muchas filas, por ausencias o falta de nombres
+# Eliminar columnas con datos faltantes o inconsistencias
+# Nota: na.omit() también elimina filas completas con valores faltantes, lo cual podría ser demasiado restrictivo.
+# stock_data <- na.omit(stock_data) 
 
-# Calcular retornos diarios
+# Calcular retornos diarios utilizando la función ROC
 returns <- ROC(stock_data, type = "discrete")
 
-# Convertir a tibble y agregar columnas útiles para el análisis de valores
+# Convertir los datos originales a un tibble, agregando la columna 'Date'
 stock_data_df <- as.data.frame(stock_data) %>%
   rownames_to_column(var = "Date") %>%
   mutate(Date = ymd(Date))
 
-# Convertir a tibble y agregar columnas útiles para el análisis de retornos
+# Convertir los retornos diarios a un tibble, agregando la columna 'Date'
 returns_df <- as.data.frame(returns) %>%
   rownames_to_column(var = "Date") %>%
   mutate(Date = ymd(Date))
@@ -252,43 +255,61 @@ Un rápido vistazo a los datos:
 
 ```{r}
 
-print(summary(stock_data_df[-1][0:9]))
+# Resumen estadístico de las primeras columnas de los datos de precios
+print(summary(stock_data_df[,-1][,1:9]))
 
-stock_data_df
+# Visualizar una muestra de los datos
+head(stock_data_df)
 
 ```
 
 ```{r}
 
-print(summary(returns_df[-1][0:9]))
+# Resumen estadístico de las primeras columnas de los retornos calculados
+print(summary(returns_df[,-1][,1:9]))
 
-returns_df
+# Visualizar una muestra de los datos
+head(returns_df)
 
 ```
 
 ## Correlaciones
 
-Para mostrar el valor de la técnica Graphical LASSO, en este caso de uso, vamos a aplicar un análisis de correlación de los valores.
+Para ilustrar el valor de la técnica Graphical LASSO en este caso de uso, comenzamos con un análisis de correlación. Esto nos ayuda a identificar relaciones entre las variables (acciones) y a explorar posibles patrones de colinealidad.
 
-Tomando solo 30 stocks stocks al azar:
+**Selección aleatoria de acciones**
+
+- Se seleccionaron 30 acciones de manera aleatoria para calcular y visualizar su matriz de correlación. 
+- El proceso es reproducible gracias a la semilla establecida.
+
 
 ```{r}
 
-# Seleccionar 30 variables al azar de stock_data_df excluyendo la primera columna
+# Seleccionar 30 variables al azar del dataframe, excluyendo la primera columna (Date)
 set.seed(42) # Fijar semilla para reproducibilidad
-random_columns <- sample(names(stock_data_df)[-1], 33)
+random_columns <- sample(names(stock_data_df)[-1], 30)
 
-# Crear un subconjunto del dataframe con las columnas seleccionadas al azar
+# Crear un subconjunto del dataframe con las columnas seleccionadas
 stock_data_random <- stock_data_df[random_columns]
 
-# Calcular la matriz de correlación con las 30 columnas seleccionadas
+
+# Calcular la matriz de correlación utilizando observaciones completas
 cor_matrix_values <- cor(stock_data_random, use = "pairwise.complete.obs")
 
+
 # Visualizar la matriz de correlación
-corrplot::corrplot(cor_matrix_values, method = "color", tl.cex = 0.6, tl.col = "black")
+corrplot::corrplot(
+  cor_matrix_values,
+  method = "color",
+  tl.cex = 0.6,
+  tl.col = "black",
+  title = "Matriz de Correlación de 30 Acciones Aleatorias"
+)
+
 
 ```
-OBSERVACIÓN: hay muchos valores altamente correlacionados, tanto negativa como positivamente.
+
+**OBSERVACIÓN INICIAL**: Se identifican valores de alta correlación, tanto positivos como negativos, lo que sugiere relaciones estrechas entre ciertos activos.
 
 Preparando un filtro para las variables muy correlacionadas (abs > 0.9), para visualizar mejor los datos:
 
@@ -398,6 +419,8 @@ print(return_hist_plot_filtered)
 
 ```
 
+**Las correlaciones positivas indican que las acciones tienden a moverse en la misma dirección, lo cual es común entre empresas que operan en sectores similares o que responden de manera similar a cambios en el mercado.**
+
 Correlación negativa:
 
 ```{r}
@@ -412,6 +435,9 @@ return_hist_plot_filtered <- neg_corr_stocks %>%
 print(return_hist_plot_filtered)
 
 ```
+
+**Las correlaciones negativas, en cambio, sugieren que las acciones pueden moverse en direcciones opuestas, lo que podría ser útil para estrategias de cobertura o diversificación en carteras de inversión.**
+
 
 CONCLUSION: Analizar valores bursátiles/stocks e intentar relacionarlos por sus correlaciones o sus distribuciones de ROC es confuso, sobretodo para el ojo inexperto. Conocer el tipo de industria o negocio que sustenta al stock para relevante, pero aún así no parece suficiente para agruparlos por su compartamiento bursatil.
 
@@ -450,12 +476,13 @@ Luego, la **matriz de precisión** \( \Omega \) puede ser aproximada por la inve
 \]
 
 Donde:
-- \( \Sigma \): matriz de covarianza.
-- \( \Omega \): matriz de precisión (inversa de la covarianza).
-- \( \text{tr}(\Sigma \Omega) \): traza del producto entre \( \Sigma \) y \( \Omega \).
-- \( \log\det(\Omega) \): logaritmo del determinante de \( \Omega \), que garantiza que \( \Omega \) sea positiva definida.
-- \( \|\Omega\|_1 \): suma de los valores absolutos de los elementos de \( \Omega \), que induce esparsidad.
-- \( \lambda \): parámetro de regularización (también llamado \( \rho \) en algunos contextos).
+
+* \( \Sigma \): matriz de covarianza.
+* \( \Omega \): matriz de precisión (inversa de la covarianza).
+* \( \text{tr}(\Sigma \Omega) \): traza del producto entre \( \Sigma \) y \( \Omega \).
+* \( \log\det(\Omega) \): logaritmo del determinante de \( \Omega \), que garantiza que \( \Omega \) sea positiva definida.
+* \( \|\Omega\|_1 \): suma de los valores absolutos de los elementos de \( \Omega \), que induce esparsidad.
+* \( \lambda \): parámetro de regularización (también llamado \( \rho \) en algunos contextos).
 
 **Intuición del término de regularización**
 
@@ -486,8 +513,10 @@ R_{jk} = -\frac{\Omega_{jk}}{\sqrt{\Omega_{jj} \cdot \Omega_{kk}}}
 \]
 
 Donde:
-- \( \Omega_{jk} \): elemento de la matriz de precisión que representa la dependencia condicional entre \( X_j \) y \( X_k \).
-- \( \Omega_{jj} \) y \( \Omega_{kk} \): elementos diagonales de \( \Omega \), que representan la varianza condicional de \( X_j \) y \( X_k \).
+
+* \( \Omega_{jk} \): elemento de la matriz de precisión que representa la dependencia condicional entre \( X_j \) y \( X_k \).
+* \( \Omega_{jj} \) y \( \Omega_{kk} \): elementos diagonales de \( \Omega \), que representan la varianza condicional de \( X_j \) y \( X_k \).
+
 
 **Intuición matemática**
 
@@ -567,14 +596,16 @@ browseURL(graph_filename)
 
 ```
 
-OBSERVACIÓN; con returns el método falla y no encuentra relaciones.
+OBSERVACIÓN: con returns el método falla y no encuentra relaciones.
+
 
 
 ### Aplicación a los valores de cierre
 
 Aplicación de la técnica, paso por paso, partiendo del **dataframe de valores de cierre** de los stocks.
 
-#### Cálculo de la Matriz de Covarianza
+
+#### 1. Cálculo de la Matriz de Covarianza
 
 ```{r}
 
@@ -582,7 +613,8 @@ cov_matrix <- cov(na.omit(stock_data)) # al omitir na se pierden varios años de
 
 ```
 
-#### Matriz de precisión
+
+#### 2. Matriz de precisión
 
 Usamos la función `glasso` para resolver este problema. El resultado incluye la matriz de precisión regularizada (\( \hat{\Omega} \)):
 
@@ -596,7 +628,8 @@ precision_matrix <- glasso_result$wi
 
 ```
 
-#### Matriz de correlación parcial
+
+#### 3. Matriz de correlación parcial
 
 La correlación parcial mide la relación directa entre dos variables \( X_j \) y \( X_k \), eliminando los efectos de todas las demás variables (\( X_{\setminus\{j,k\}} \)). Se calcula a partir de la matriz de precisión regularizada (\( \Omega \)).
 
@@ -607,8 +640,10 @@ R_{jk} = -\frac{\Omega_{jk}}{\sqrt{\Omega_{jj} \cdot \Omega_{kk}}}
 \]
 
 Donde:
-- \( \Omega_{jk} \): elemento de la matriz de precisión que representa la dependencia condicional entre \( X_j \) y \( X_k \).
-- \( \Omega_{jj} \) y \( \Omega_{kk} \): elementos diagonales de \( \Omega \), que representan la varianza condicional de \( X_j \) y \( X_k \).
+
+* \( \Omega_{jk} \): elemento de la matriz de precisión que representa la dependencia condicional entre \( X_j \) y \( X_k \).
+* \( \Omega_{jj} \) y \( \Omega_{kk} \): elementos diagonales de \( \Omega \), que representan la varianza condicional de \( X_j \) y \( X_k \).
+
 
 **Intuición matemática**
 
@@ -630,25 +665,42 @@ rownames(partial_corr_matrix) <- colnames(returns)
 
 ```
 
-#### Visualizar las relaciones como un gráfico de red
+
+#### 4. Visualizar las relaciones como un gráfico de red
 
 Usamos igraph para construir y visualizar un gráfico basado en las conexiones significativas en la matriz de correlación parcial:
 
 ```{r}
-
 # Construir grafo desde la matriz de correlación parcial
 stock_graph <- graph_from_adjacency_matrix(partial_corr_matrix > 0.1, mode = "max", weighted = TRUE)
+```
 
+- El grafico se genera a partir de matriz de correlación parcial, que muestra las relaciones significativas entre las acciones. 
+- En este caso, se han seleccionado solo las correlaciones mayores a **0.1** para construir las conexiones en el grafo.
+- Se utilizó el paquete igraph para crear y visualizar el gráfico de red.
+
+```{r}
 # Asignar sectores a los nodos
 V(stock_graph)$sector <- data$sectors[match(V(stock_graph)$name, data$symbols)]
+```
+- Cada nodo en el gráfico representa una acción, y a estos nodos se les asignan los sectores correspondientes. 
+- Esto se logra mediante la función **match()** para emparejar los nombres de las acciones (símbolos) con sus sectores en el dataset.
 
+```{r}
 # Crear un vector de colores únicos para cada sector
 unique_sectors <- unique(V(stock_graph)$sector)
 sector_colors <- rainbow(length(unique_sectors))  # Genera una paleta de colores
+```
+- Para hacer que la visualización sea más intuitiva, cada sector tiene un color único, generado a partir de una paleta de colores (rainbow). 
+- Esto facilita la identificación de los sectores a través de los colores asignados a los nodos.
 
+```{r}
 # Mapear cada sector a un color
 sector_color_map <- setNames(sector_colors, unique_sectors)
+```
+- Se ajustaron elementos visuales como el tamaño de los vértices, la ausencia de etiquetas en los nodos (a fin de mantener el gráfico limpio) y el grosor de las aristas, que varía en función del peso (o intensidad) de la correlación entre las acciones
 
+```{r}
 # Asignar colores a los vértices según su sector
 V(stock_graph)$color <- sector_color_map[V(stock_graph)$sector]
 
@@ -658,8 +710,12 @@ plot(stock_graph,
      edge.width = E(stock_graph)$weight * 2,
      vertex.color = V(stock_graph)$color,
      main = "Grafo de acciones - según valores y coloreado sector")
-
 ```
+
+- Este gráfico no solo muestra la estructura de correlaciones significativas, sino que también permite observar cómo las acciones dentro de un mismo sector tienden a estar fuertemente correlacionadas. 
+- Esta visualización puede ser útil para identificar grupos de acciones que comparten comportamientos similares y que podrían reaccionar de manera similar ante movimientos del mercado.
+
+
 
 Gráfico HTML interactivo con graphjs:
 
